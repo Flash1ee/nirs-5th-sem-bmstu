@@ -1,0 +1,111 @@
+\chapter{Различия в диалектах SQL СУБД MySQL и PostgreSQL}
+\label{cha:classification}
+Для полноценной конвертации запросов следует выявить особенности, которые есть в MySQL, но нет в PostgreSQL,
+различия в данных СУБД и привести способ адаптирования запросов MySQL в PostgreSQL.
+Ниже приведены сравнительные таблицы на основе данных, полученных в ходе знакомства с документацией СУБД, а также 
+некоторых статей \cite{rdbms-standard-diff}, \cite{cmp-postgresql-mysql}.
+\section{Функциональные различия}
+Ниже приведена сравнительная таблица функциональных различий между СУБД.  
+В первую очередь учитываются моменты, которые есть в MySQL, но нет в PostgreSQL. При конвератции запросов необходимо обратить особое внимание
+на описанные ниже различия и адаптировать их под новую систему.
+\clearpage
+    \begin{table}[]
+        \small
+        \caption{Функциональные различия СУБД}
+        \begin{tabular}{|l|l|l|}
+        \hline
+        Возможности                                                                 & MySQL                                                                                                           & PostgreSQL                                                                                                   \\ \hline
+        Работа с датой                                                              & \begin{tabular}[c]{@{}l@{}}CURDATE() \\ CURTIME() \\ EXTRACT()\end{tabular}                                     & \begin{tabular}[c]{@{}l@{}}CURRENT\_DATE() \\ CURRENT\_TIME() \\ EXTRACT()\end{tabular}                      \\ \hline
+        Autoincrement тип                                                           & auto\_increment                                                                                                 & serial                                                                                                       \\ \hline
+        Столбец идентификации                                                       & Нет                                                                                                             & Да                                                                                                           \\ \hline
+        \begin{tabular}[c]{@{}l@{}}Аналитические \\ функции\end{tabular}            & Нет                                                                                                             & Да                                                                                                           \\ \hline
+        \begin{tabular}[c]{@{}l@{}}Установка параметра \\ по умолчанию\end{tabular} & Константа                                                                                                       & Константа и функция                                                                                          \\ \hline
+        \begin{tabular}[c]{@{}l@{}}ЯП для хранимых \\ процедур\end{tabular}         & \begin{tabular}[c]{@{}l@{}}Синтаксис, \\ удовлетворяющий SQL:2003\end{tabular}                                  & \begin{tabular}[c]{@{}l@{}}Ruby, Perl, Python, TCL, \\ PL/pgSQL, \\ SQL, JavaScript и др.\end{tabular}       \\ \hline
+        Индексы                                                                     & \begin{tabular}[c]{@{}l@{}}Только индексы:\\ B-Tree, R-Tree, Hash, Inverted\end{tabular}                        & \begin{tabular}[c]{@{}l@{}}Индексы MySQL + \\ Частичные, Bitmap, Expression, \\ Функциональные\end{tabular}  \\ \hline
+        Условные конструкции                                                        & \begin{tabular}[c]{@{}l@{}}IF, \\ IFNULL\end{tabular}                                                           & CASE                                                                                                         \\ \hline
+        \begin{tabular}[c]{@{}l@{}}Возможность удалить \\ TEMP TABLE\end{tabular}   & Да                                                                                                              & Нет                                                                                                          \\ \hline
+        \end{tabular}
+        \end{table}
+Во время поиска функциональных различий MySQL и PostgreSQL были получен следующие выводы:  
+конвертация запросов с MySQL на PostgreSQL проще в реализации, чем наоборот, так
+как MySQL реализует меньшее количество стандартных SQL функций, чем PostgreSQL.
+Это накладывает трудности при конвертации запросов, следует
+выявить конкретные различия в используемых запросах и написать аналоги для PostgreSQL. 
+MySQL не поддерживает следующие возможности:
+\begin{itemize}
+    \item объединение таблиц FULL OUTER JOINS;
+    \item пересечение - INTERSECT;
+    \item разность - EXCEPT;
+    \item невозможно выполнить операторы UPDATE или DELETE с SELECT подзапросом из той же таблицы;
+    \item ограничение количества строк LIMIT не поддерживается в подзапросах;
+    \item подзапрос LIMIT с IN/ALL/ANY/SOME;
+    \item частичные индексы, битовые индексы и индексы выражений;
+    \item оконные функции нельзя использовать как часть UPDATE или DELETE;
+    \item ограничение на уникальность строк DISTINCT не поддерживается функциями окна;
+    \item вложенные оконные функции не поддерживаются.
+\end{itemize} 
+
+\section{Синтаксические различия}
+Ниже приведена таблица синтаксических различий СУБД.
+\begin{table}[]
+    \small
+    \caption{Синтаксические различия СУБД}
+        \begin{tabular}{|l|l|l|}
+        \hline
+        MySQL                                                                  & PostgreSQL                                                                         & Комментарий                                                                                                                                                                                                                                                                                                                                                                                                                    \\ \hline
+        \#                                                                     & --                                                                                 & \begin{tabular}[c]{@{}l@{}}MySQL использует \# для начала строки комментария;\\PostgreSQL использует двойное тире (стандарт ANSI);\\ MySQL может использовать --, но требует пробела\\ после --, \\ в то время как в PostgreSQL это не обязательно.\end{tabular}                                                                                                                                                                \\ \hline
+        \begin{tabular}[c]{@{}l@{}} \apostrophe Vasiliy\apostrophe\ и \\ \apostrophe \apostrophe Vasiliy\apostrophe \apostrophe \end{tabular}        & \apostrophe Vasiliy\apostrophe & \begin{tabular}[c]{@{}l@{}}MySQL использует \apostrophe или \apostrophe \apostrophe\ для заключения значений\\в кавычки.\\Это не стандарт ANSI для баз данных. PostgreSQL\\ использует для этого только одинарные кавычки.\\ Двойные кавычки используются для обозначения\\ системных идентификаторов, имен полей\\имен таблиц и т. д.. С помощью SET\\ sql\_mode=\apostrophe ANSI\_QUOTES\apostrophe\ можно заставить MySQL \\ использовать только одинарные кавычки\end{tabular} \\ \hline
+        \begin{tabular}[c]{@{}l@{}}... WHERE \\ lastname=\\ \apostrophe \apostrophe car\apostrophe \apostrophe\ \end{tabular} & \begin{tabular}[c]{@{}l@{}}... WHERE \\ lower(lastname)=\\ \apostrophe car\apostrophe\end{tabular}      & \begin{tabular}[c]{@{}l@{}}PostgreSQL чувствителен к регистру\\ при сравнении строк. MySQL - нет.\end{tabular}                                                                                                                                                                                                                                                                                                                 \\ \hline
+        \begin{tabular}[c]{@{}l@{}}\apostrophe CaR\apostrophe\ = \apostrophe car\apostrophe\\ а может и нет\end{tabular}  & \apostrophe \apostrophe CaR\apostrophe \apostrophe\ \textless{}\textgreater \apostrophe \apostrophe car\apostrophe \apostrophe & \begin{tabular}[c]{@{}l@{}}Имена баз данных, таблиц, полей и столбцов\\ в PostgreSQL не зависят от регистра, если их не создали\\ с двойными кавычками вокруг имени.\\ В этом случае они чувствительны к регистру.\\ \\ В MySQL имена таблиц могут быть чувствительны \\ к регистру или нет,в зависимости от \\ используемой операционной системы.\end{tabular}                                                               \\ \hline
+        \begin{tabular}[c]{@{}l@{}}\apostrophe foo\apostrophe\ || \apostrophe bar\apostrophe\ \\ означает или\end{tabular} & \begin{tabular}[c]{@{}l@{}}\apostrophe foo\apostrophe\ || \apostrophe bar\apostrophe\ \\ означает \\ конкатенацию\end{tabular} & \begin{tabular}[c]{@{}l@{}}MySQL принимает операторы языка C для логики, \\ SQL требует AND, OR. Решение - использовать\\ стандартные ключевые слова SQL,\\ обе базы данных понимают это.\end{tabular}                                                                                                                                                                                                                         \\ \hline
+        \end{tabular}
+    \end{table}
+\clearpage
+\section{Различия типов данных}
+Ниже приведена таблица сопоставления типов данных MySQL и PostgreSQL.
+\begin{table}[]
+    \small
+    \caption{Таблица сопоставления типов данных СУБД}
+        \begin{tabular}{|l|l|l|}
+        \hline
+        MySQL                                                                                                                              & PostgreSQL                                                                                                                              & Комментарий                                                                                                                                                                      \\ \hline
+        \begin{tabular}[c]{@{}l@{}}TINY(SMALL)INT\\ MEDIUMINT\\ BIGINT\end{tabular}                                                    & \begin{tabular}[c]{@{}l@{}}SMALLINT\\ INTEGER\\ BIGINT\end{tabular}                                                          & \begin{tabular}[c]{@{}l@{}}Размер INTEGER в PostgreSQL\\ 4 байта\end{tabular}                                                                                                    \\ \hline
+        \begin{tabular}[c]{@{}l@{}}TINYINT UNSIGNED\\ SMALLINT UNSIGNED\\ MEDIUMINT UNSIGNED\\ INT UNSIGNED\\ BIGINT UNSIGNED\end{tabular} & \begin{tabular}[c]{@{}l@{}}SMALLINT\\ INTEGER\\ INTEGER\\ BIGINT\\ NUMERIC(20)\end{tabular}                                             & \begin{tabular}[c]{@{}l@{}}PostgreSQL соответствует\\ стандарту, в нем нет \\ беззановых типов\end{tabular}                                                                      \\ \hline
+        \begin{tabular}[c]{@{}l@{}}FLOAT(UNSIGNED)\end{tabular}                                                                     & \begin{tabular}[c]{@{}l@{}}REAL\end{tabular}                                                                                     & \begin{tabular}[c]{@{}l@{}}PostgreSQL чувствителен к регистру \\ при сравнении строк. MySQL - нет.\end{tabular}                                                                  \\ \hline
+        DOUBLE                                                                                                                             & DOUBLE PRECISION                                                                                                                        &                                                                                                                                                                                  \\ \hline
+        BOOLEAN                                                                                                                            & BOOLEAN                                                                                                                                 & \begin{tabular}[c]{@{}l@{}}В MySQL тип BOOLEAN - это \\ псевдоним для TINYINT(1).\\ PostgreSQL не поддерживает \\ автоматическую\\ конвертацию bool в числовые типы\end{tabular} \\ \hline
+        \begin{tabular}[c]{@{}l@{}}(TINY,MEDIUM,\\LONG)TEXT\end{tabular}                                                    & \begin{tabular}[c]{@{}l@{}}TEXT\end{tabular}                                                                       &                                                                                                                                                                                  \\ \hline
+        \begin{tabular}[c]{@{}l@{}}(VAR)BINARY(n)\\ (TINY)BLOB\\ (MEDIUM,LONG)BLOB\end{tabular}                         & \begin{tabular}[c]{@{}l@{}}BYTEA\\ BYTEA\\ BYTEA\\ BYTEA\end{tabular}                                                   &                                                                                                                                                                                  \\ \hline
+        ZEROFILL                                                                                                                           & Не поддерживается                                                                                                                       &                                                                                                                                                                                  \\ \hline
+        \begin{tabular}[c]{@{}l@{}}DATE\\ TIME\\ DATETIME\\ TIMESTAMP\end{tabular}                                                         & \begin{tabular}[c]{@{}l@{}}DATE\\ TIME {[}NO TZ{]}\\ TIMESTAMP {[}NO TZ{]}\\ TIMESTAMP {[}NO TZ{]}\end{tabular} &                                                                                                                                                                                  \\ \hline
+        \end{tabular}
+    \end{table}
+\clearpage
+\section{Анализ различий для решения задачи конвертации запросов}
+
+При рассмотрении способов конвертации запросов, следует рассмотреть два варианта - с ограничениями и без них. 
+Это необходимо, потому что каждая СУБД имеет свои уникальные функции, которых нет в других СУБД или их функционал не в точности повторяется.
+
+\subsection{Конвертация с ограничениями}
+Существующие различия между СУБД препятствуют реализации полной конвертации запросов.
+
+Если бы стандарт SQL был реализован полностью каждой из рассматриваемых СУБД, или же были реализованы
+одни и те же функции, то одним из способов конвертации запросов(при условии, что СУБД 
+использует только принятые стандартом SQL функций) был бы следующий:  
+так как все используемые функции являются стандартными, то следует перевести синтаксис MySQL на PostgreSQL,
+тем самым решив задачу конвертации.
+
+Однако использование каждой СУБД исключительно функций из стандарта SQL убирает их преимущества, 
+отличающие каждую СУБД.
+
+\subsection{Полная конвертация запросов}
+Для решения задачи конвертации запросов, следует выполнить следующие действия:
+\begin{itemize}
+    \item заменить несовместимые типы данных на аналоги в PostgreSQL;
+    \item перевести запросы с синтаксиса MySQL на синтаксис PostgreSQL;
+    \item заменить нестандартные функции на аналоги в PostgreSQL;
+    \item СУБД MySQL нечувствительна к регистру, следует определить общий регистр;
+    \item адаптировать отличающиеся типы.
+\end{itemize} 
+
+В результате запросы для MySQL будут преобразованы в корректные запросы для PostgreSQL и задача конвертации будет решена. 
